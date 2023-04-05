@@ -1,1 +1,17 @@
 1680643725541:;set _root_.scala.collection.Seq(historyPath := None,shellPrompt := { _ => "" },SettingKey[_root_.scala.Option[_root_.sbt.File]]("sbtStructureOutputFile") in _root_.sbt.Global := _root_.scala.Some(_root_.sbt.file("/private/var/folders/5r/szqgfdcj48bcdlb2m0m9gysw0000gn/T/sbt-structure.xml")),SettingKey[_root_.java.lang.String]("sbtStructureOptions") in _root_.sbt.Global := "download, resolveClassifiers, resolveSbtClassifiers");apply -cp "/Users/brianreicher/Library/Application Support/JetBrains/IntelliJIdea2021.3/plugins/Scala/repo/org/jetbrains/scala/sbt-structure-extractor_2.12_1.0/2021.3.0/sbt-structure-extractor-2021.3.0.jar" org.jetbrains.sbt.CreateTasks;preferScala2;*/*:dumpStructure
+1680663168337:ls
+1680663268222:package
+1680663282381:scalac DataStream
+1680663289514:compile
+1680663339136:run
+1680663352553:test
+1680663406494:compile
+1680663407373:run
+1680663488407:compile
+1680663490559:test
+1680663491211:run
+1680663565950:ru
+1680663567516:run
+1680664209478:sbt reload
+1680664213807:run
+1680664286896:test

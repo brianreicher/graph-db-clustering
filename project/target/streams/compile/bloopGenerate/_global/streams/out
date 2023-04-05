@@ -1,0 +1,4 @@
+[debug] [graph-nn-build] Classpath dependencies List()
+[debug] [graph-nn-build] Dependencies from configurations List()
+[debug] Bloop wrote the configuration of project 'graph-nn-build' to '/Users/brianreicher/Documents/GitHub/graph-nn/project/.bloop/graph-nn-build.json'
+[success] Generated .bloop/graph-nn-build.json

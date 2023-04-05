@@ -1,0 +1,79 @@
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:2:12: object apache is not a member of package org[0m
+[0m[[0m[31merror[0m] [0m[0mimport org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}[0m
+[0m[[0m[31merror[0m] [0m[0m           ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:3:12: object apache is not a member of package org[0m
+[0m[[0m[31merror[0m] [0m[0mimport org.apache.spark._[0m
+[0m[[0m[31merror[0m] [0m[0m           ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:4:12: object apache is not a member of package org[0m
+[0m[[0m[31merror[0m] [0m[0mimport org.apache.spark.streaming._[0m
+[0m[[0m[31merror[0m] [0m[0m           ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:5:12: object apache is not a member of package org[0m
+[0m[[0m[31merror[0m] [0m[0mimport org.apache.spark.streaming.kafka._[0m
+[0m[[0m[31merror[0m] [0m[0m           ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:6:12: object apache is not a member of package org[0m
+[0m[[0m[31merror[0m] [0m[0mimport org.apache.spark.streaming.StreamingContext._[0m
+[0m[[0m[31merror[0m] [0m[0m           ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:7:12: object apache is not a member of package org[0m
+[0m[[0m[31merror[0m] [0m[0mimport org.apache.spark.streaming.twitter._[0m
+[0m[[0m[31merror[0m] [0m[0m           ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:8:12: object apache is not a member of package org[0m
+[0m[[0m[31merror[0m] [0m[0mimport org.apache.spark.streaming.{Seconds, StreamingContext}[0m
+[0m[[0m[31merror[0m] [0m[0m           ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:22:18: not found: value twitter4j[0m
+[0m[[0m[31merror[0m] [0m[0m    val cb = new twitter4j.conf.ConfigurationBuilder()[0m
+[0m[[0m[31merror[0m] [0m[0m                 ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:28:20: not found: value twitter4j[0m
+[0m[[0m[31merror[0m] [0m[0m    val auth = new twitter4j.auth.OAuthAuthorization(cb.build())[0m
+[0m[[0m[31merror[0m] [0m[0m                   ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:29:18: not found: value TwitterUtils[0m
+[0m[[0m[31merror[0m] [0m[0m    val tweets = TwitterUtils.createStream(new StreamingContext(new SparkConf().setAppName("TwitterKafkaSparkStreaming"), Seconds(1)), Some(auth), filters)[0m
+[0m[[0m[31merror[0m] [0m[0m                 ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:29:48: not found: type StreamingContext[0m
+[0m[[0m[31merror[0m] [0m[0m    val tweets = TwitterUtils.createStream(new StreamingContext(new SparkConf().setAppName("TwitterKafkaSparkStreaming"), Seconds(1)), Some(auth), filters)[0m
+[0m[[0m[31merror[0m] [0m[0m                                               ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:29:69: not found: type SparkConf[0m
+[0m[[0m[31merror[0m] [0m[0m    val tweets = TwitterUtils.createStream(new StreamingContext(new SparkConf().setAppName("TwitterKafkaSparkStreaming"), Seconds(1)), Some(auth), filters)[0m
+[0m[[0m[31merror[0m] [0m[0m                                                                    ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:29:123: not found: value Seconds[0m
+[0m[[0m[31merror[0m] [0m[0m    val tweets = TwitterUtils.createStream(new StreamingContext(new SparkConf().setAppName("TwitterKafkaSparkStreaming"), Seconds(1)), Some(auth), filters)[0m
+[0m[[0m[31merror[0m] [0m[0m                                                                                                                          ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:38:24: not found: type KafkaProducer[0m
+[0m[[0m[31merror[0m] [0m[0m    val producer = new KafkaProducer[String, String](props)[0m
+[0m[[0m[31merror[0m] [0m[0m                       ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:49:19: not found: type StreamingContext[0m
+[0m[[0m[31merror[0m] [0m[0m    val ssc = new StreamingContext(new SparkConf().setAppName("TwitterKafkaSparkStreaming"), Seconds(1))[0m
+[0m[[0m[31merror[0m] [0m[0m                  ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:49:40: not found: type SparkConf[0m
+[0m[[0m[31merror[0m] [0m[0m    val ssc = new StreamingContext(new SparkConf().setAppName("TwitterKafkaSparkStreaming"), Seconds(1))[0m
+[0m[[0m[31merror[0m] [0m[0m                                       ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:49:94: not found: value Seconds[0m
+[0m[[0m[31merror[0m] [0m[0m    val ssc = new StreamingContext(new SparkConf().setAppName("TwitterKafkaSparkStreaming"), Seconds(1))[0m
+[0m[[0m[31merror[0m] [0m[0m                                                                                             ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:60:18: not found: value KafkaUtils[0m
+[0m[[0m[31merror[0m] [0m[0m    val stream = KafkaUtils.createDirectStream[String, String]([0m
+[0m[[0m[31merror[0m] [0m[0m                 ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:62:7: not found: value LocationStrategies[0m
+[0m[[0m[31merror[0m] [0m[0m      LocationStrategies.PreferConsistent,[0m
+[0m[[0m[31merror[0m] [0m[0m      ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/KafkaStream.scala:63:7: not found: value ConsumerStrategies[0m
+[0m[[0m[31merror[0m] [0m[0m      ConsumerStrategies.Subscribe[String, String](Array("YOUR_TOPIC_NAME"), kafkaParams)[0m
+[0m[[0m[31merror[0m] [0m[0m      ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/SparkStream.scala:3:12: object apache is not a member of package org[0m
+[0m[[0m[31merror[0m] [0m[0mimport org.apache.spark._[0m
+[0m[[0m[31merror[0m] [0m[0m           ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/SparkStream.scala:4:12: object apache is not a member of package org[0m
+[0m[[0m[31merror[0m] [0m[0mimport org.apache.spark.streaming._[0m
+[0m[[0m[31merror[0m] [0m[0m           ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/SparkStream.scala:5:12: object apache is not a member of package org[0m
+[0m[[0m[31merror[0m] [0m[0mimport org.apache.spark.streaming.StreamingContext._ // not necessary since Spark 1.3[0m
+[0m[[0m[31merror[0m] [0m[0m           ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/SparkStream.scala:9:20: not found: type SparkConf[0m
+[0m[[0m[31merror[0m] [0m[0m    val conf = new SparkConf().setMaster("local[2]").setAppName("NetworkWordCount")[0m
+[0m[[0m[31merror[0m] [0m[0m                   ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/SparkStream.scala:10:19: not found: type StreamingContext[0m
+[0m[[0m[31merror[0m] [0m[0m    val ssc = new StreamingContext(conf, Seconds(1))[0m
+[0m[[0m[31merror[0m] [0m[0m                  ^[0m
+[0m[[0m[31merror[0m] [0m[0m/Users/brianreicher/Documents/GitHub/graph-nn/src/main/scala/Stream/SparkStream.scala:10:42: not found: value Seconds[0m
+[0m[[0m[31merror[0m] [0m[0m    val ssc = new StreamingContext(conf, Seconds(1))[0m
+[0m[[0m[31merror[0m] [0m[0m                                         ^[0m
+[0m[[0m[31merror[0m] [0m[0m26 errors found[0m
