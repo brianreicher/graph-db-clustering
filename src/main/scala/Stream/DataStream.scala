@@ -1,13 +1,8 @@
-import java.util.Properties
-import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
-import org.apache.spark._
-import org.apache.spark.streaming._
-import org.apache.spark.streaming.kafka._
-import org.apache.spark.streaming.StreamingContext._
-import org.apache.spark.streaming.twitter._
-import org.apache.spark.streaming.{Seconds, StreamingContext}
+package Stream
 
-class Stream {
+import java.util.Properties
+
+class DataStream {
   def main(args: Array[String]): Unit = {
 
     // Set up Twitter API credentials
