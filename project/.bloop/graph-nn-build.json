@@ -202,7 +202,7 @@
         "platform": {
             "name": "jvm",
             "config": {
-                "home": "/Library/Internet Plug-Ins/JavaAppletPlugin.plugin/Contents/Home",
+                "home": "/Users/brianreicher/Library/Java/JavaVirtualMachines/openjdk-18.0.1/Contents/Home",
                 "options": [
                     "-Duser.dir=/Users/brianreicher/Documents/GitHub/graph-nn/project"
                 ]
