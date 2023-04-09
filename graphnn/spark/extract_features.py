@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from ..database.imageDB import ImageDB
 import pyspark
+from tqdm import tqdm
 
 class FeatureExtractor():
     def __init__(self, image_dir, batch_size=5) -> None:
@@ -24,7 +25,7 @@ class FeatureExtractor():
     # define a function to load images in batches and convert them to numpy arrays
     def load_images(self) -> None:
         images:dict = {}
-        for i in range(self.batch_size):
+        for i in tqdm(range(self.batch_size)):
             # load the image
             img_path:str = self.image_dir + "/" + batch[i]  #TODO: add directory image indexing
             img = cv2.imread(img_path)

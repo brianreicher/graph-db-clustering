@@ -1,7 +1,5 @@
 import neo4j
 from neo4j import GraphDatabase
-import numpy as np
-from tqdm import tqdm
 
 class ImageDB():
     """
@@ -39,18 +37,6 @@ class ImageDB():
         Disconnects from the Neo4j server.
         """
         self.driver.close()    
-
-    def setSchema(self) -> None:
-        """
-        Sets the spotify schema and drops the data in the database.
-        """
-        session = self.driver.session()
-
-        # defines the schema to drop from the csv file
-        query:str = """
-                        SCHEMA
-                    """
-        session.run(query)
 
     def flush_database(self) -> None:
         """
