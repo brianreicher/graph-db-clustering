@@ -1,10 +1,9 @@
 from pyspark.sql import SparkSession
-from pyspark.ml.feature import PCA
-from pyspark.ml.linalg import Vectors, VectorUDT
+from pyspark.ml.feature import VectorAssembler
 import cv2
 import numpy as np
 from ..database.imageDB import ImageDB
-
+import pyspark
 
 class FeatureExtractor():
     def __init__(self, image_dir, batch_size=5) -> None:
@@ -27,7 +26,7 @@ class FeatureExtractor():
         images:dict = {}
         for i in range(self.batch_size):
             # load the image
-            img_path:str = self.image_dir + "/" + batch[i]  # add directory image indexing
+            img_path:str = self.image_dir + "/" + batch[i]  #TODO: add directory image indexing
             img = cv2.imread(img_path)
 
             # convert the image to a 1028x1028 numpy array
@@ -70,46 +69,25 @@ class FeatureExtractor():
     # define a function to extract image features
     @staticmethod
     def extract_features(img: np.ndarray) -> np.ndarray:
-        # Extract statistical features
-
+        # Extract statistical features: TODO: add more
         return np.ndarray([np.mean(img), np.std(img), np.median(img), np.min(img), np.max(img)])
 
-    def createRelationships(self, batch_features:int) -> None:
-    
-        # create nodes for each feature
-        for feature_idx in range(10):
-            nodes = []
-            for i in range(self.batch_size):
-                nodes.append({
-                    "id": i,
-                    "value": batch_features[i][feature_idx]
-                })
+    def vectorAssemblerFeatures(self, img: np.ndarray):
+        # Apply a Gaussian blur to the grayscale image
+        blur_image:np.ndarray = cv2.GaussianBlur(img, (5, 5), 0)
 
-            # create edges between nodes based on some relationship
-            edges = []
-            for i in range(self.batch_size):
-                for j in range(i+1, self.batch_size):
-                    edges.append({
-                        "from": i,
-                        "to": j,
-                        "weight": abs(batch_features[i][feature_idx] - batch_features[j][feature_idx])
-                    })
-            with self.database.driver.session() as session:
-                # save nodes and edges to Neo4j
-                session.run("""
-                    UNWIND $nodes as node
-                    MERGE (n:FeatureNode {id: node.id, value: node.value})
-                """, nodes=nodes)
-                session.run("""
-                    UNWIND $edges as edge
-                    MATCH (n1:FeatureNode {id: edge.from})
-                    MATCH (n2:FeatureNode {id: edge.to})
-                    MERGE (n1)-[:FEATURE_REL {weight: edge.weight}]->(n2)
-                """, edges=edges)
+        # Apply Canny edge detection to the blurred image
+        edges_image: np.ndarray = cv2.Canny(blur_image, 100, 200)
 
-                # close the Neo4j session and driver
-                session.close()
-        self.database.close()
+        # Flatten the image arrays into a single vector
+        vector_assembler: VectorAssembler = VectorAssembler(inputCols=["edges"], outputCol="features")
+        data: list = [(edges_image.ravel(),)]
+        df:pyspark.DataFrame = self.spark.createDataFrame(data, ["edges"])
+        df = vector_assembler.transform(df)
+
+        # Display the resulting features
+        features = df.select("features").collect()[0][0]
+        return features
 
     def insertImageGraph(self) -> None:
         if self.batch is None:
@@ -118,16 +96,7 @@ class FeatureExtractor():
         feature_names: list[str] = ["Mean", "Standard Deviation", "Median", "Minimum Value", "Maximum Value"]
         for label, img in self.batch.items():
             feat_array: np.ndarray = self.extract_features(img)
-
-            # Define edges based on correlation coefficients
             corr_matrix: np.ndarray = np.corrcoef(feat_array)
-            corr_mean_std_dev = corr_matrix[0, 1]
-            corr_mean_median = corr_matrix[0, 2]
-            corr_mean_min = corr_matrix[0, 3]
-            corr_mean_max = corr_matrix[0, 4]
-            corr_std_dev_median = corr_matrix[1, 2]
-            corr_median_min = corr_matrix[2, 3]
-            corr_median_max = corr_matrix[2, 4]
 
             with self.database.driver.session() as session:
                 # Create the image node
