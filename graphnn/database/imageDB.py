@@ -14,7 +14,7 @@ class ImageDB():
 
     def __init__(self, uri: str, user: str, password: str) -> None:
         """
-        Constructs a new Neo4jDriver object.
+        Constructs a new ImageDB object.
         Args:
             uri (str): The URI of the Neo4j server.
             user (str): The username for the Neo4j server.

@@ -1,3 +1,6 @@
+import sys
+sys.path.append('/Users/brianreicher/Documents/GitHub/graph-nn')
+
 import graphnn
 
 if __name__ == "__main__":
@@ -11,5 +14,8 @@ if __name__ == "__main__":
     print("Data flushed")
 
     # fill the db with spotify csv data
-    database.setSchema()
+    # database.setSchema()
     print("Data added")
+
+    # disconnect
+    database.disconnect()
