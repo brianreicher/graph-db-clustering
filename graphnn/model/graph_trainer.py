@@ -42,7 +42,7 @@ def train(dataset, task, writer) -> GNNStack:
 
     return model
 
-def test(loader, model, is_validation=False):
+def test(loader, model, is_validation=False) -> float:
     model.eval()
 
     correct:int = 0
