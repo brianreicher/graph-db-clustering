@@ -5,14 +5,14 @@ import numpy as np
 from ..database.imageDB import ImageDB
 import pyspark
 from tqdm import tqdm
+import os
 
 class FeatureExtractor():
     def __init__(self, image_dir, batch_size=5) -> None:
         # create a SparkSession for our feature extractor
         self.spark: SparkSession = SparkSession.builder.appName("FeatureExtractor").getOrCreate()
 
-        # define the image directory and batch size
-        self.image_dir:str = image_dir
+        # define the batch size
         self.batch_size: int = batch_size
 
         self.batch_index:int = 0
@@ -22,12 +22,24 @@ class FeatureExtractor():
         self.database: ImageDB = ImageDB("neo4j://localhost:7687", "neo4j", "password")
         self.database.connect()
 
+        directory:str = image_dir
+        self.file_list:list = []
+
+        # Iterate over all files in the directory
+        for filename in os.listdir(image_dir):
+
+            filepath: str = os.path.join(directory, filename)
+            # Check if the file is a regular file (i.e., not a directory)
+            if os.path.isfile(filepath):
+                # Add the file path to the list
+                self.file_list.append(filepath)
+
     # define a function to load images in batches and convert them to numpy arrays
     def load_images(self) -> None:
         images:dict = {}
         for i in tqdm(range(self.batch_size)):
             # load the image
-            img_path:str = self.image_dir + "/" + batch[i]  #TODO: add directory image indexing
+            img_path:str = self.image_dir + "/" + self.file_list[i+self.batch_index]
             img = cv2.imread(img_path)
 
             # convert the image to a 1028x1028 numpy array
