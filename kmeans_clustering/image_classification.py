@@ -6,6 +6,8 @@ import os
 import neo4j
 from neo4j import GraphDatabase
 from pyspark.sql import SparkSession
+from PIL import Image, ImageFilter
+
 
 
 class ImageDB():
@@ -242,6 +244,20 @@ class FeatureExtractor():
             contour_features.append([perimeter, area, solidity, extent, equivalent_diameter, angle])
 
         return contour_features
+    
+    def detect_edges(image_array) -> np.array:
+        # Convert numpy array to Pillow Image object
+        image = Image.fromarray(image_array)
+
+        # Convert image to grayscale
+        image = image.convert('L')
+
+        # Apply Canny edge detection algorithm
+        edges = image.filter(ImageFilter.FIND_EDGES)
+
+        # Convert edges back to numpy array and return
+        return np.array(edges)
+
 
 
     def train(self) -> None:
