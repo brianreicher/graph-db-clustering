@@ -10,7 +10,7 @@ from pyspark.sql import SparkSession
 
 class ImageDB():
     """
-    Neo4j graph database to contain image embeddings for GNN classification.
+    Neo4j graph database to contain image embeddings for KNN and KMC classification.
     Attributes:
         uri (str): The URI of the Neo4j server.
         user (str): The username for the Neo4j server.
@@ -74,7 +74,7 @@ class ImageDB():
 
 
 class FeatureExtractor():
-    def __init__(self, image_dir, batch_size=5) -> None:
+    def __init__(self, image_dir, batch_size=5, epochs=100) -> None:
         # create a SparkSession for our feature extractor
         self.spark: SparkSession = SparkSession.builder.appName("FeatureExtractor").getOrCreate()
 
@@ -83,7 +83,7 @@ class FeatureExtractor():
 
         self.batch_index:int = 0
         self.batch = None
-
+        self.epochs:int = epochs
         # connect to the Neo4j database
         self.database: ImageDB = ImageDB("neo4j://localhost:7687", "neo4j", "password")
         self.database.connect()
@@ -105,13 +105,16 @@ class FeatureExtractor():
         images:dict = {}
         for img_path in tqdm(self.file_list):
             # load the image
-            img = cv2.imread(img_path)
+            try:
+                img = cv2.imread(img_path)
 
-            # convert the image to a 1028x1028 numpy array
-            img: np.ndarray = cv2.resize(img, (1028, 1028))
-            img: np.ndarray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            images[img_path] = img
-            self.batch_index += 1
+                # convert the image to a 1028x1028 numpy array
+                img: np.ndarray = cv2.resize(img, (1028, 1028))
+                img: np.ndarray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                images[img_path] = img
+                self.batch_index += 1
+            except:
+                pass
         print(images)
         self.batch: dict = images
         
@@ -152,23 +155,6 @@ class FeatureExtractor():
         # Extract statistical features: TODO: add more
         return [np.mean(img), np.std(img), np.median(img), np.min(img), np.max(img)]
 
-    def vectorAssemblerFeatures(self, img: np.ndarray):
-        # Apply a Gaussian blur to the grayscale image
-        blur_image:np.ndarray = cv2.GaussianBlur(img, (5, 5), 0)
-
-        # Apply Canny edge detection to the blurred image
-        edges_image: np.ndarray = cv2.Canny(blur_image, 100, 200)
-
-        # Flatten the image arrays into a single vector
-        vector_assembler: VectorAssembler = VectorAssembler(inputCols=["edges"], outputCol="features")
-        data: list = [(edges_image.ravel(),)]
-        df:pyspark.DataFrame = self.spark.createDataFrame(data, ["edges"])
-        df = vector_assembler.transform(df)
-
-        # Display the resulting features
-        features = df.select("features").collect()[0][0]
-        return features
-
     def insertImageGraph(self) -> None:
         if self.batch is None:
             self.load_images()
@@ -181,88 +167,66 @@ class FeatureExtractor():
             with self.database.driver.session() as session:
                 # Create the image node
                 session.write_transaction(
-                    lambda tx: tx.run("CREATE (:Image {name: $name, features: $feature_vec})", name=label, feature_vec=feat_array)
+                    lambda tx: tx.run("CREATE (:Image {name: $name, mean: $mean, std: $std, centroid: false})", name=label, mean=feat_array[0], std=feat_array[1])
                 )
 
-    def eucliean_distance(self, node1: dict, node2: dict) -> float:
-        """
-        Calculates the similarity score between two images based on their attribute values.
-        Args:
-            nod1 (dict): The first image.
-            node2 (dict): The second image.
-        Returns:
-            float: The similarity score between the two images.
-        """
-
-        def process_dict(d) -> np.ndarray:
-            """
-            Processes input dictionaries to scrape numerical and boolean values to add to sim score vector.
-            """
-            values:list = []
-            for key, value in d.items():
-                if key not in self.exclude_keys: # ignore element if it is in the ignore list
-                    if isinstance(value, bool): # map booleans to 0/1
-                        values.append(int(value))
-                    elif isinstance(value, (int, float)): # extract floats/ints
-                        values.append(value)
-
-            # Convert the list to a Numpy array
-            return np.array(values)
+    def initCentroids(self, k=2) -> None:
+        query:str = f"""MATCH (n:Image)
+                       WITH n, rand() as r
+                       ORDER BY r
+                       LIMIT {k}
+                       SET n.centroid = true
+                    """
+        with self.database.driver.session() as session:
+            session.run(query)
+    
+    def heursitic(self) -> None:         
+    # calculate and assign nodes
+        query:str = """ MATCH (n:Image), (centroid:Image {centroid: true})
+                        WITH n, centroid, avg(centroid.mean -n.mean) AS dist
+                        ORDER BY dist
+                        WITH n, collect(centroid)[0] AS nearestCentroid
+                        SET n.cluster = nearestCentroid.id
+                    """
         
-        # convert the two dicts
-        print(node1, node2)
-
-        # Calculate Euclidean distance between the tracks
-        return np.linalg.norm((node1-node2))
-
-    def evaluate_metrics(self, threshold=0) -> None:
-        """
-        Method for evaluating a given metric threshold over a random batch of nodes.
-        Args:
-            threshold (float): The threshold to evaluate whether a relationship should be created .
-        """
         with self.database.driver.session() as session:
-            for image in tqdm(self.file_list): 
-                # create a dict of the track props
-                node1_values:dict = session.run(f"MATCH (i:Image) WHERE i.name = {image} RETURN i").single()['i']._properties
-                for pair_image in self.file_list:
-                    # create a dictionary of the random props
-                    if pair_image != image:
-                        node2_values:dict = session.run(f"MATCH (i:Image) WHERE i.name = {pair_image} RETURN i").single()['i']._properties
-                    else:
-                        continue
-                    # eval the sim score
-                    similarity_score: float = self.eucliean_distance(node1_values, node2_values)
-
-                    # create a relationship if the sim score is above the threshold
-                    if similarity_score > threshold:
-                        self.database.create_relationship(image, pair_image, "MATCHED", f"{{sim_score: {similarity_score}}}")
-
-    def predict(self, name) -> None:
+            session.run(query)
+    
+    def recalcCentroid(self) -> None:
+        # re-evaluate centroids
+        query:str = """
+                        MATCH (centroid:Image {centroid: true})<-[:BELONGS_TO]-(n:Image)
+                        WITH centroid, avg(n.mean) AS meanFeature1, avg(n.std) AS meanFeature2
+                        SET
+                        CREATE (:Image {name: newCluster, mean: meanFeature1, std: meanFeature2, centroid: true})
+                    """
         with self.database.driver.session() as session:
-            result = session.run(""" MATCH (n1:Image {name: $node_name})
-                                        MATCH (n2:Image)
-                                        WHERE n2.name <> $node_name
-                                        WITH n1, n2, gds.alpha.similarity.euclideanDistance([n1.features], [n2.features]) AS distance
-                                        ORDER BY distance ASC
-                                        LIMIT 5
-                                        RETURN n2.id, distance
-                                    """, node_name=name)
-            for record in result:
-                print(record)
+            session.run(query)
+
+    def train(self) -> None:
+        # Define Cypher query to find non-centroid nodes
+        draw_cluster: str = """MATCH (n:Image {centroid: false}), (c:Image {centroid: true})
+                                WHERE n <> c
+                                WITH n, c, abs(n.mean - c.mean) AS difference
+                                ORDER BY difference ASC
+                                WITH n, c, collect({centroid: c, difference: difference})[0] AS closest
+                                WHERE c = closest.centroid
+                                CREATE (n)-[:CLOSEST_TO {difference: closest.difference}]->(c)
+                            """
+
+        for _ in range(self.epochs):
+            self.heursitic()
+            self.recalcCentroid()
+            print(_)
 
 
 if __name__ == "__main__":
     print("initialize driver")
     fe: FeatureExtractor = FeatureExtractor(image_dir='../data', batch_size=1)
     fe.load_images()
-    print(fe.file_list)
-    img:np.ndarray = fe.batch['../data/cartman.png']
     fe.database.flush_database()
-    print(fe.extract_features(img))
+
     fe.insertImageGraph()
+    fe.initCentroids()
+    fe.train()
     fe.spark.stop()
-
-    fe.predict('../data/cartman.png')
-
-
