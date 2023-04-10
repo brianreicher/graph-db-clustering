@@ -1,6 +1,0 @@
-[debug] downloaded https://repo1.maven.org/maven2/org/apache/spark/spark-streaming-kafka-0-8_2.13/2.4.8/spark-streaming-kafka-0-8_2.13-2.4.8.pom
-[debug] downloaded https://repo1.maven.org/maven2/org/apache/spark/kafka_2.13/3.2.0/kafka_2.13-3.2.0.pom
-[debug] downloaded https://repo1.maven.org/maven2/org/twitter4j/twitter4j-stream/4.0.7/twitter4j-stream-4.0.7.pom
-[debug] downloaded https://repo1.maven.org/maven2/org/apache/spark/spark-streaming-kafka-0-8_2.13/2.4.8/spark-streaming-kafka-0-8_2.13-2.4.8.pom.sha1
-[debug] downloaded https://repo1.maven.org/maven2/org/apache/spark/kafka_2.13/3.2.0/kafka_2.13-3.2.0.pom.sha1
-[debug] downloaded https://repo1.maven.org/maven2/org/twitter4j/twitter4j-core/4.0.7/twitter4j-core-4.0.7.pom
