@@ -162,11 +162,11 @@ class FeatureExtractor():
             print(label)
             feat_array: list = self.extract_features(img)
             print(feat_array)
-            # contour_array: list = self.get_contour_features(img)
-            # edge_array:list = list(self.detect_edges(img))
+            contour_array: np.ndarray = self.get_contour_features(img)
+            edge_array:np.ndarray= self.detect_edges(img)
 
-            # feat_array.extend(contour_array)
-            # feat_array.extend(edge_array)
+            feat_array.append(np.mean(contour_array), np.std(contour_array), np.linalg.matrix_rank(contour_array))
+            feat_array.append(np.mean(edge_array), np.std(edge_array), np.linalg.matrix_rank(edge_array))
 
             with self.database.driver.session() as session:
                 # Create the image node
@@ -238,15 +238,14 @@ class FeatureExtractor():
 
     def heursitic(self) -> None:         
     # calculate and assign nodes
-        query:str = """MATCH (n:Image {centroid: false}), (c:Image {centroid: true})
-                                WHERE n <> c
-                                WITH n, c, abs(n.mean - c.mean) AS difference
-                                ORDER BY difference ASC
-                                WITH n, c, collect({centroid: c, difference: difference})[0] AS closest
-                                WHERE c = closest.centroid
-                                CREATE (n)-[:CLOSEST_TO {difference: closest.difference}]->(c)
-                            """
-        
+        query: str = """
+                        MATCH (n:Image {centroid: false}), (c:Image {centroid: true})
+                        WITH n, c, abs(n.mean - c.mean) AS difference
+                        ORDER BY difference ASC
+                        WITH n, collect({centroid: c, difference: difference})[0] AS closest
+                        WITH closest.centroid AS cent, closest.difference as diff
+                        CREATE (n)-[:CLOSEST_TO {difference: diff}]->(cent)
+                    """
         with self.database.driver.session() as session:
             session.run(query)
     
@@ -262,16 +261,6 @@ class FeatureExtractor():
             session.run(query)
     
     def train(self) -> None:
-        # Define Cypher query to find non-centroid nodes
-        draw_cluster: str = """MATCH (n:Image {centroid: false}), (c:Image {centroid: true})
-                                WHERE n <> c
-                                WITH n, c, abs(n.mean - c.mean) AS difference
-                                ORDER BY difference ASC
-                                WITH n, c, collect({centroid: c, difference: difference})[0] AS closest
-                                WHERE c = closest.centroid
-                                CREATE (n)-[:CLOSEST_TO {difference: closest.difference}]->(c)
-                            """
-
         for _ in range(self.epochs):
             self.heursitic()
             self.recalcCentroid()
