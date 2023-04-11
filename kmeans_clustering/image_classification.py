@@ -169,8 +169,8 @@ class FeatureExtractor():
             contour_array: np.ndarray = self.get_contour_features(img)
             edge_array:np.ndarray= self.detect_edges(img)
 
-            feat_array.append(np.mean(contour_array), np.std(contour_array), np.linalg.matrix_rank(contour_array))
-            feat_array.append(np.mean(edge_array), np.std(edge_array), np.linalg.matrix_rank(edge_array))
+            feat_array.append(np.mean(contour_array))
+            feat_array.append(np.mean(edge_array))
 
             with self.database.driver.session() as session:
                 # Create the image node
@@ -246,10 +246,10 @@ class FeatureExtractor():
                         MATCH (n:Image {centroid: false}), (c:Image {centroid: true})
                         WITH n, c, abs(n.mean - c.mean) AS difference
                         ORDER BY difference ASC
-                        WITH n, collect({centroid: c, difference: difference})[0] AS closest
+                        WITH n, collect({centroid: c, difference: difference})[0] AS closest 
                         WITH closest.centroid AS cent, closest.difference as diff
                         CREATE (n)-[:CLOSEST_TO {difference: diff}]->(cent)
-                    """
+                     """
         with self.database.driver.session() as session:
             session.run(query)
     
@@ -258,8 +258,11 @@ class FeatureExtractor():
         query:str = """
                         MATCH (centroid:Image {centroid: true})<-[:BELONGS_TO]-(n:Image)
                         WITH centroid, avg(n.mean) AS meanFeature1, avg(n.std) AS meanFeature2
-                        SET
                         CREATE (:Image {name: newCluster, mean: meanFeature1, std: meanFeature2, centroid: true})
+                        MATCH (c:Image {centroid: true})
+                        SET c.centroid = false
+                        MATCH ()-[r]-()
+                        DELETE r
                     """
         with self.database.driver.session() as session:
             session.run(query)
