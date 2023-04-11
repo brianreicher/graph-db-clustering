@@ -8,8 +8,6 @@ from neo4j import GraphDatabase
 from pyspark.sql import SparkSession
 from PIL import Image, ImageFilter
 
-
-
 class ImageDB():
     """
     Neo4j graph database to contain image embeddings for KNN and KMC classification.
@@ -117,7 +115,6 @@ class FeatureExtractor():
                 self.batch_index += 1
             except:
                 pass
-        print(images)
         self.batch: dict = images
         
     def kill_session(self) -> None:
@@ -151,27 +148,30 @@ class FeatureExtractor():
 
         return histogram
 
-    # define a function to extract image features
     @staticmethod
     def extract_features(img: np.ndarray) -> list:
         # Extract statistical features: TODO: add more
-        return [np.mean(img), np.std(img), np.median(img), np.min(img), np.max(img), np.corrcoef(img), np.cov(img)]
-    
-
+        return [np.mean(img), np.std(img), np.median(img), np.min(img), np.max(img), np.linalg.det(np.corrcoef(img)), np.linalg.det(np.cov(img))]
 
     def insertImageGraph(self) -> None:
         if self.batch is None:
             self.load_images()
 
         for label, img in self.batch.items():
+            label: str = label[label.index('/'):]
+            print(label)
             feat_array: list = self.extract_features(img)
-            feat_array.append(np.corrcoef(feat_array))
             print(feat_array)
+            # contour_array: list = self.get_contour_features(img)
+            # edge_array:list = list(self.detect_edges(img))
+
+            # feat_array.extend(contour_array)
+            # feat_array.extend(edge_array)
 
             with self.database.driver.session() as session:
                 # Create the image node
                 session.write_transaction(
-                    lambda tx: tx.run("CREATE (:Image {name: $name, mean: $mean, std: $std, centroid: false})", name=label, mean=feat_array[0], std=feat_array[1])
+                    lambda tx: tx.run("CREATE (:Image {name: $name, mean: $mean, std: $std, median: $median, min: $min, max: $max, corrcoef: $corrcoef, covariance: $cov, centroid: false})", name=label, mean=feat_array[0], std=feat_array[1], median=feat_array[2], min=feat_array[3], max=feat_array[4], corrcoef=feat_array[5], cov=feat_array[6])
                 )
 
     def initCentroids(self, k=2) -> None:
@@ -184,14 +184,68 @@ class FeatureExtractor():
         with self.database.driver.session() as session:
             session.run(query)
     
+    @staticmethod
+    def get_contour_features(img) -> list:
+        # Convert image to grayscale and apply binary threshold
+        _, thresh = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
+
+        # Find contours in the thresholded image
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Calculate contour features for each contour
+        contour_features = []
+        for contour in contours:
+            # Calculate perimeter, area, and solidity
+            perimeter = cv2.arcLength(contour, True)
+            area = cv2.contourArea(contour)
+            hull_area = cv2.convexHull(contour, returnPoints=False)
+            if hull_area.all() > 0:
+                solidity = area / float(hull_area)
+            else:
+                solidity = 0
+
+            # Calculate extent, equivalent diameter, and orientation
+            _, _, w, h = cv2.boundingRect(contour)
+            rect_area = w * h
+            if rect_area > 0:
+                extent = float(area) / rect_area
+                equivalent_diameter = np.sqrt(4 * area / np.pi)
+                # _, _, angle = cv2.fitEllipse(contour)
+                angle: float = 3.14/2 # TODO: UPDATE
+            else:
+                extent = 0
+                equivalent_diameter = 0
+                angle = 0
+
+            # Append contour features to list
+            contour_features.append([perimeter, area, solidity, extent, equivalent_diameter, angle])
+
+        return contour_features
+    
+    @staticmethod
+    def detect_edges(image_array) -> np.array:
+        # Convert numpy array to Pillow Image object
+        image: Image = Image.fromarray(image_array)
+
+        # Convert image to grayscale
+        image = image.convert('L')
+
+        # Apply Canny edge detection algorithm
+        edges = image.filter(ImageFilter.FIND_EDGES)
+
+        # Convert edges back to numpy array and return
+        return np.array(edges)
+
     def heursitic(self) -> None:         
     # calculate and assign nodes
-        query:str = """ MATCH (n:Image), (centroid:Image {centroid: true})
-                        WITH n, centroid, avg(centroid.mean -n.mean) AS dist
-                        ORDER BY dist
-                        WITH n, collect(centroid)[0] AS nearestCentroid
-                        SET n.cluster = nearestCentroid.id
-                    """
+        query:str = """MATCH (n:Image {centroid: false}), (c:Image {centroid: true})
+                                WHERE n <> c
+                                WITH n, c, abs(n.mean - c.mean) AS difference
+                                ORDER BY difference ASC
+                                WITH n, c, collect({centroid: c, difference: difference})[0] AS closest
+                                WHERE c = closest.centroid
+                                CREATE (n)-[:CLOSEST_TO {difference: closest.difference}]->(c)
+                            """
         
         with self.database.driver.session() as session:
             session.run(query)
@@ -207,59 +261,6 @@ class FeatureExtractor():
         with self.database.driver.session() as session:
             session.run(query)
     
-
-    def get_contour_features(img) -> list:
-        # Convert image to grayscale and apply binary threshold
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
-
-        # Find contours in the thresholded image
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        # Calculate contour features for each contour
-        contour_features = []
-        for contour in contours:
-            # Calculate perimeter, area, and solidity
-            perimeter = cv2.arcLength(contour, True)
-            area = cv2.contourArea(contour)
-            hull_area = cv2.convexHull(contour, returnPoints=False)
-            if hull_area > 0:
-                solidity = area / float(hull_area)
-            else:
-                solidity = 0
-
-            # Calculate extent, equivalent diameter, and orientation
-            _, _, w, h = cv2.boundingRect(contour)
-            rect_area = w * h
-            if rect_area > 0:
-                extent = float(area) / rect_area
-                equivalent_diameter = np.sqrt(4 * area / np.pi)
-                _, _, angle = cv2.fitEllipse(contour)
-            else:
-                extent = 0
-                equivalent_diameter = 0
-                angle = 0
-
-            # Append contour features to list
-            contour_features.append([perimeter, area, solidity, extent, equivalent_diameter, angle])
-
-        return contour_features
-    
-    def detect_edges(image_array) -> np.array:
-        # Convert numpy array to Pillow Image object
-        image = Image.fromarray(image_array)
-
-        # Convert image to grayscale
-        image = image.convert('L')
-
-        # Apply Canny edge detection algorithm
-        edges = image.filter(ImageFilter.FIND_EDGES)
-
-        # Convert edges back to numpy array and return
-        return np.array(edges)
-
-
-
     def train(self) -> None:
         # Define Cypher query to find non-centroid nodes
         draw_cluster: str = """MATCH (n:Image {centroid: false}), (c:Image {centroid: true})
