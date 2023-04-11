@@ -100,25 +100,29 @@ class FeatureExtractor():
                 # Add the file path to the list
                 self.file_list.append(filepath)
 
-    # define a function to load images in batches and convert them to numpy arrays
+     # define a function to load images in batches and convert them to numpy arrays using spark 
     def load_images(self) -> None:
-        images:dict = {}
-        for img_path in tqdm(self.file_list):
-            # load the image
+        images_rdd = self.spark.sparkContext.parallelize(self.file_list)
+
+        def load_image_np(img_path):
             try:
+                # load the image
                 img = cv2.imread(img_path)
 
-                # convert the image to a 1028x1028 numpy array
-                img: np.ndarray = cv2.resize(img, (1028, 1028))
+                # convert the image to a 32x32 numpy array
+                img: np.ndarray = cv2.resize(img, (32, 32))
                 img: np.ndarray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                images[img_path] = img
-                self.batch_index += 1
+
+                return (img_path, img)
             except:
-                pass
+                return (img_path, None)
+
+        images_rdd = images_rdd.map(load_image_np).filter(lambda x: x[1] is not None)
+
+        images = images_rdd.collectAsMap()
         self.batch: dict = images
-        
-    def kill_session(self) -> None:
-        self.spark.stop()
+        self.batch_index += len(images)
+
 
     @staticmethod
     def extract_color_histogram(image) -> np.ndarray:
