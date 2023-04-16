@@ -279,8 +279,8 @@ class FeatureExtractor():
 
         # A 13-element feature vector representing the texture features of the image.
         return features
-
-
+    
+    
     def heursitic(self) -> None:         
     # calculate and assign nodes
         query: str = """
@@ -304,6 +304,19 @@ class FeatureExtractor():
                         SET c.centroid = false
                         MATCH ()-[r]-()
                         DELETE r
+                    """
+        with self.database.driver.session() as session:
+            session.run(query)
+
+    def cosine_similarity(self) -> None:
+        # finds the cosine similarity between 2 given nodes (also uses graph-algorithms library from cypher)
+        # TODO: needs to specify a feature(s) from a node 
+        query: str = """
+                        MATCH (a:Image {id: $node1_id})-[:HAS_FEATURE]->(af:Feature)
+                        MATCH (b:Image {id: $node2_id})-[:HAS_FEATURE]->(bf:Feature)
+                        WITH a, b, collect(af.value) AS a_features, collect(bf.value) AS b_features
+                        WITH a, b, algo.similarity.cosine(a_features, b_features) AS cosine_sim
+                        RETURN cosine_sim
                     """
         with self.database.driver.session() as session:
             session.run(query)
