@@ -7,6 +7,8 @@ import neo4j
 from neo4j import GraphDatabase
 from pyspark.sql import SparkSession
 from PIL import Image, ImageFilter
+import mahotas
+
 
 class ImageDB():
     """
@@ -239,6 +241,22 @@ class FeatureExtractor():
 
         # Convert edges back to numpy array and return
         return np.array(edges)
+    
+    # Extracts texture features from an image array using the Haralick texture descriptor.
+    def extract_texture_features(image: np.ndarray) -> np.ndarray:
+
+        # Convert the image to grayscale
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+        # Calculate the Haralick texture features
+        features = mahotas.features.haralick(gray)
+
+        # Flatten the feature matrix into a 1D feature vector
+        features = features.flatten()
+
+        # A 13-element feature vector representing the texture features of the image.
+        return features
+
 
     def heursitic(self) -> None:         
     # calculate and assign nodes
