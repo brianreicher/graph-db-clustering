@@ -340,6 +340,32 @@ class FeatureExtractor():
             for record in result:
                 id_to_count[record["c"]._id] = record["count(r)"]
             return id_to_count
+        
+    def scoreClusters(self):
+        # get list of names of all nodes connected to each centroid
+        query: str = """
+                        MATCH (i:Image)-[r:CLOSEST_TO]->(c:Centroid)
+                        RETURN ID(c), i.name
+                    """
+        with self.database.driver.session() as session:
+            result = session.run(query)
+            id_to_names = defaultdict(list)
+            for record in result:
+                id_to_names[record["ID(c)"]].append(record["i.name"])
+                
+            # calculate the silhoutte score for each centroid
+            id_to_score = {}
+            for centroid_id, names in id_to_names.items():
+                # for each cluster calculate the # of type a - type b / total number of nodes
+                print(names)
+                dog_count = sum([1 for name in names if "dog" in name])
+                cat_count = sum([1 for name in names if "cat" in name])
+                diff = abs(dog_count - cat_count)
+                total = dog_count + cat_count
+                score = diff / total
+                id_to_score[centroid_id] = score
+            
+            return id_to_score
     
     def train(self) -> None:
         # remove all current connections
@@ -365,6 +391,9 @@ class FeatureExtractor():
             
             # get the new counts
             new_id_to_count = self.count_connections()
+            
+            cluster_score = self.scoreClusters()
+            print(f"Cluster score: {cluster_score}")
             
             # check if the counts are the same
             if id_to_count == new_id_to_count:
