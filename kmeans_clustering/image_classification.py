@@ -90,7 +90,7 @@ class FeatureExtractor():
     @staticmethod
     def extract_features(img: np.ndarray) -> list:
         # Extract statistical features: TODO: add more
-        return [np.mean(img), np.std(img), np.median(img), np.min(img), np.max(img), 0., 0.]
+        return [np.mean(img), np.std(img), np.median(img), np.min(img), np.max(img), np.corrcoef(img)[0][0], np.cov(img)[0][0]]
 
     def insertImageGraph(self) -> None:
         if self.batch is None:
