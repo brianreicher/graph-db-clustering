@@ -5,6 +5,7 @@ from pyspark.sql import SparkSession
 from PIL import Image, ImageFilter
 import mahotas
 from .database import *
+from collections import defaultdict
 
 
 class FeatureExtractor():
@@ -109,15 +110,15 @@ class FeatureExtractor():
             with self.database.driver.session() as session:
                 # Create the image node
                 session.write_transaction(
-                    lambda tx: tx.run("CREATE (:Image {name: $name, mean: $mean, std: $std, median: $median, min: $min, max: $max, corrcoef: $corrcoef, covariance: $cov, centroid: false})", name=label, mean=feat_array[0], std=feat_array[1], median=feat_array[2], min=feat_array[3], max=feat_array[4], corrcoef=feat_array[5], cov=feat_array[6])
+                    lambda tx: tx.run("CREATE (:Image {name: $name, mean: $mean, std: $std, median: $median, min: $min, max: $max, corrcoef: $corrcoef, covariance: $cov})", name=label, mean=float(feat_array[0]), std=float(feat_array[1]), median=float(feat_array[2]), min=float(feat_array[3]), max=float(feat_array[4]), corrcoef=float(feat_array[5]), cov=float(feat_array[6]))
                 )
 
     def initCentroids(self, k=2) -> None:
-        query:str = f"""MATCH (n:Image)
+        query:str = f"""MATCH (n)
                        WITH n, rand() as r
                        ORDER BY r
                        LIMIT {k}
-                       SET n.centroid = true
+                       CREATE (:Centroid {{mean: n.mean, std: n.std, median: n.median, min: n.min, max: n.max, corrcoef: n.corrcoef, covariance: n.covariance}})
                     """
         with self.database.driver.session() as session:
             session.run(query)
@@ -202,36 +203,171 @@ class FeatureExtractor():
                      """
         with self.database.driver.session() as session:
             session.run(query)
-    
-    def recalcCentroid(self) -> None:
-        # re-evaluate centroids
-        query:str = """
-                        MATCH (centroid:Image {centroid: true})<-[:BELONGS_TO]-(n:Image)
-                        WITH centroid, avg(n.mean) AS meanFeature1, avg(n.std) AS meanFeature2
-                        CREATE (:Image {name: newCluster, mean: meanFeature1, std: meanFeature2, centroid: true})
-                        MATCH (c:Image {centroid: true})
-                        SET c.centroid = false
-                        MATCH ()-[r]-()
-                        DELETE r
-                    """
-        with self.database.driver.session() as session:
-            session.run(query)
-
-    def cosine_similarity(self) -> None:
-        # finds the cosine similarity between 2 given nodes (also uses graph-algorithms library from cypher)
-        # TODO: needs to specify a feature(s) from a node 
+            
+    def removeConnections(self) -> None:
         query: str = """
-                        MATCH (a:Image {id: $node1_id})-[:HAS_FEATURE]->(af:Feature)
-                        MATCH (b:Image {id: $node2_id})-[:HAS_FEATURE]->(bf:Feature)
-                        WITH a, b, collect(af.value) AS a_features, collect(bf.value) AS b_features
-                        WITH a, b, algo.similarity.cosine(a_features, b_features) AS cosine_sim
-                        RETURN cosine_sim
-                    """
+            MATCH ()-[r]-()
+            DELETE r
+        """
         with self.database.driver.session() as session:
             session.run(query)
+    
+    def getAllNodes(self):
+        # return all centroids and images
+        query_get_centroids: str = """
+                        MATCH (c:Centroid)
+                        RETURN c
+                    """
+        query_get_images: str = """
+                        MATCH (i:Image)
+                        RETURN i
+                    """
+        
+        with self.database.driver.session() as session:
+            centroids = session.run(query_get_centroids)
+            centroid_id_to_properties = {}
+            for record in centroids:
+                centroid_id_to_properties[record["c"]._id] = record["c"]._properties
+            
+            images = session.run(query_get_images)
+            image_id_to_properties = {}
+            for record in images:
+                image_id_to_properties[record["i"]._id] = record["i"]._properties
+            
+            return centroid_id_to_properties, image_id_to_properties
+        
+    def connectToCentroid(self, centroid_id_to_properties, image_id_to_properties):
+        def cosine_similarity(x, y):
+            return np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
+        
+        # connect images to centroids based on cosine similarity
+        for image_id, image_properties in image_id_to_properties.items():
+            # delete the image name from the properties
+            del image_properties["name"]
+            
+            closest_centroid_id = None
+            closest_centroid_similarity = np.inf
+            for centroid_id, centroid_properties in centroid_id_to_properties.items():
+                image_features = list(image_properties.values())
+                centroid_features = list(centroid_properties.values())
+                
+                # calculate cosine similarity
+                similarity = cosine_similarity(image_features, centroid_features)
+                
+                # update the closest centroid
+                if similarity < closest_centroid_similarity:
+                    closest_centroid_id = centroid_id
+                    closest_centroid_similarity = similarity
+
+            # connect the image to the closest centroid and store the cosine similarity
+            # print(f"Connecting image {image_id} to centroid {closest_centroid_id} with similarity {closest_centroid_similarity}")
+            
+            query: str = """
+                            MATCH (i:Image) WHERE ID(i)=$image_id
+                            MATCH (c:Centroid) WHERE ID(c)=$centroid_id
+                            CREATE (i)-[r:CLOSEST_TO]->(c)
+                            SET r.cosine_similarity = $similarity
+                        """
+            with self.database.driver.session() as session:
+                session.run(query, image_id=image_id, centroid_id=closest_centroid_id, similarity=closest_centroid_similarity)
+
+    def recalcCentroid(self) -> None:
+        with self.database.driver.session() as session:
+            # get all the centroids
+            query_get_centroids: str = """
+                                    MATCH (c:Centroid)
+                                    RETURN c
+                                """
+            
+            # get a list of centroid ids
+            centroids = session.run(query_get_centroids)
+            centroid_id_to_properties = {}
+            for record in centroids:
+                centroid_id_to_properties[record["c"]._id] = record["c"]._properties
+
+            # get all images connected to a centroid
+            query_get_nodes: str = """
+                                MATCH (i:Image)-[:CLOSEST_TO]->(c:Centroid) WHERE ID(c)=$centroid_id
+                                RETURN i
+                                """
+            
+            # recalculate centroid averages
+            for centroid_id, centroid_properties in centroid_id_to_properties.items():
+                # get all the nodes connected to the centroid
+                nodes = session.run(query_get_nodes, centroid_id=centroid_id)
+                node_feature_sums = defaultdict(int)
+                
+                centroid_features = list(centroid_properties.keys())
+                num_nodes = 0
+                
+                # loop through nodes to get sum of all the nodes features
+                for node in nodes:
+                    num_nodes += 1
+                    for feature in centroid_features:
+                        node_feature_sums[feature] += node["i"]._properties[feature]
+                
+                # calculate the mean for each feature
+                corrcoef = node_feature_sums["corrcoef"] / num_nodes
+                covariance = node_feature_sums["covariance"] / num_nodes
+                max = node_feature_sums["max"] / num_nodes
+                mean = node_feature_sums["mean"] / num_nodes
+                median = node_feature_sums["median"] / num_nodes
+                min = node_feature_sums["min"] / num_nodes
+                std = node_feature_sums["std"] / num_nodes
+                
+                # print old and new centroid features
+                print(f"Old centroid features: corrcoef={centroid_properties['corrcoef']}, covariance={centroid_properties['covariance']}, max={centroid_properties['max']}, mean={centroid_properties['mean']}, median={centroid_properties['median']}, min={centroid_properties['min']}, std={centroid_properties['std']}")
+                print(f"New centroid features: corrcoef={corrcoef}, covariance={covariance}, max={max}, mean={mean}, median={median}, min={min}, std={std}")
+                
+                # update the centroid
+                query_update_centroid: str = """
+                                            MATCH (c:Centroid) WHERE ID(c)=$centroid_id
+                                            SET c.corrcoef = $corrcoef, c.covariance = $covariance, c.max = $max, c.mean = $mean, c.median = $median, c.min = $min, c.std = $std
+                                            """
+                session.run(query_update_centroid, centroid_id=centroid_id, corrcoef=corrcoef, covariance=covariance, max=max, mean=mean, median=median, min=min, std=std)
+                
+    def count_connections(self):
+        query: str = """
+                        MATCH (i:Image)-[r:CLOSEST_TO]->(c:Centroid)
+                        RETURN c, count(r)
+                    """
+        with self.database.driver.session() as session:
+            result = session.run(query)
+            id_to_count = {}
+            for record in result:
+                id_to_count[record["c"]._id] = record["count(r)"]
+            return id_to_count
     
     def train(self) -> None:
-        for _ in range(self.epochs):
-            self.heursitic()
+        # remove all current connections
+        self.removeConnections()
+        centroid_id_to_properties, image_id_to_properties = self.getAllNodes()
+        self.connectToCentroid(centroid_id_to_properties, image_id_to_properties)
+        id_to_count = self.count_connections()
+        
+        # continue clustering until the clusters are stable
+        while True:
+            # recalculate centroids
             self.recalcCentroid()
-            print(_)
+            
+            # remove all current connections
+            self.removeConnections()
+            
+            # get all the nodes again
+            centroid_id_to_properties, image_id_to_properties = self.getAllNodes()
+            
+            # connect the images to the centroids
+            self.connectToCentroid(centroid_id_to_properties, image_id_to_properties)
+            
+            # get the new counts
+            new_id_to_count = self.count_connections()
+            
+            # check if the counts are the same
+            if id_to_count == new_id_to_count:
+                break
+            else:
+                id_to_count = new_id_to_count
+        
+        self.recalcCentroid()
+        
+        
