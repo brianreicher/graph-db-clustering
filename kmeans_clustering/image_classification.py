@@ -90,14 +90,17 @@ class FeatureExtractor():
     @staticmethod
     def extract_features(img: np.ndarray) -> list:
         # Extract statistical features: TODO: add more
-        return [np.mean(img), np.std(img), np.median(img), np.min(img), np.max(img), np.linalg.det(np.corrcoef(img)), np.linalg.det(np.cov(img))]
+        return [np.mean(img), np.std(img), np.median(img), np.min(img), np.max(img), 0., 0.]
 
     def insertImageGraph(self) -> None:
         if self.batch is None:
             self.load_images()
 
         for label, img in self.batch.items():
-            label: str = label[label.index('/'):]
+            if 'cat' in label.lower():
+                label:str = 'cat'
+            else:
+                label:str = 'dog'
             print(label)
             feat_array: list = self.extract_features(img)
             print(feat_array)
@@ -260,7 +263,7 @@ class FeatureExtractor():
                     closest_centroid_similarity = similarity
 
             # connect the image to the closest centroid and store the cosine similarity
-            # print(f"Connecting image {image_id} to centroid {closest_centroid_id} with similarity {closest_centroid_similarity}")
+            print(f"Connecting image {image_id} to centroid {closest_centroid_id} with similarity {closest_centroid_similarity}")
             
             query: str = """
                             MATCH (i:Image) WHERE ID(i)=$image_id
@@ -346,6 +349,7 @@ class FeatureExtractor():
         id_to_count = self.count_connections()
         
         # continue clustering until the clusters are stable
+        iter:int = 0
         while True:
             # recalculate centroids
             self.recalcCentroid()
@@ -367,6 +371,9 @@ class FeatureExtractor():
                 break
             else:
                 id_to_count = new_id_to_count
+            iter+=1
+            if iter>100:
+                break
         
         self.recalcCentroid()
         
