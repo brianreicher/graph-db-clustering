@@ -4,8 +4,8 @@ from kmeans_clustering import image_classification
 
 if __name__ == "__main__":
     print("initialize driver")
-    fe: image_classification.FeatureExtractor = image_classification.FeatureExtractor(image_dir='./data', batch_size=1)
-    fe.load_images()
+    fe: image_classification.FeatureExtractor = image_classification.FeatureExtractor(image_dir='./data/cifar', batch_size=1)
+    fe.load_cifar()
     fe.database.flush_database()
 
     fe.insertImageGraph()

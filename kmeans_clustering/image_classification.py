@@ -155,13 +155,12 @@ class FeatureExtractor():
             if 'dog' in label.lower():
                 label:str = 'dog'
             print(label)
-            feat_array: list = self.extract_features(img)
+            try:
+                feat_array: list = self.extract_features(img)
+            except:
+                feat_array: list = self.extract_features(np.asarray(img[1]))
             print(feat_array)
-            contour_array: np.ndarray = self.get_contour_features(img)
-            edge_array:np.ndarray= self.detect_edges(img)
 
-            feat_array.append(np.mean(contour_array))
-            feat_array.append(np.mean(edge_array))
 
             with self.database.driver.session() as session:
                 # Create the image node
