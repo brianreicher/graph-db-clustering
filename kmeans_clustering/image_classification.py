@@ -66,9 +66,22 @@ class FeatureExtractor():
 
      # define a function to load images in batches and convert them to numpy arrays using spark 
     def load_images(self) -> None:
+        """
+        Loads images in batches and converts them to numpy arrays using spark
+        Returns:
+            None
+
+        """
         images_rdd = self.spark.sparkContext.parallelize(self.file_list)
 
         def load_image_np(img_path) -> tuple:
+            """
+            Loads an image from a specific file path and converts it to a numpy array
+            Args:
+                img_path (str): The path of the image to load
+            Returns:
+                tuple: A tuple containing the image path and the numpy array representing the image
+            """
             try:
                 # load the image
                 img = cv2.imread(img_path)
@@ -88,9 +101,23 @@ class FeatureExtractor():
         self.batch_index += len(images)
 
     def load_cifar(self) -> None:
+        """
+        Loads images from the cifar dataset into batches and converts them to numpy arrays using Spark
+        Returns:
+            None
+
+        """
        images_rdd = self.spark.sparkContext.parallelize(self.data)
 
        def load_image_np(batch) -> tuple:
+              """
+              Loads an image from a batch and converts it to a numpy array
+                Args:
+                    batch (list): The batch to load
+              Returns:
+                    tuple: A tuple containing the image batch path and the numpy array representing the image
+
+              """
            # convert the image to a 32x32 numpy array and apply filtering
            img: np.ndarray = cv2.resize(batch, (32, 32))
            # img: np.ndarray = cv2.cvtColor(batch, cv2.COLOR_BGR2GRAY)
@@ -111,6 +138,15 @@ class FeatureExtractor():
 
     @staticmethod
     def extract_color_histogram(image) -> np.ndarray:
+        """
+        Extracts a color histogram from an image
+        Args:
+            image: The image to extract the color histogram from
+
+        Returns:
+            np.ndarray: The color histogram of the image
+
+        """
 
         # Define the ranges for the histogram bins
         hue_range: list[int] = [0, 180]
@@ -139,10 +175,29 @@ class FeatureExtractor():
 
     @staticmethod
     def extract_features(img: np.ndarray) -> list:
+        """
+        Extracts features from an image
+        Args:
+            img: The image to extract features from
+
+        Returns:
+            list: A list of features extracted from the image
+
+        """
         # Extract statistical features: TODO: add more
         return [np.mean(img), np.std(img), np.median(img), np.min(img), np.max(img), np.corrcoef(img)[0][0], np.cov(img)[0][0]]
 
     def insertImageGraph(self, image_types='local') -> None:
+        """
+        Inserts images and their respective features into neo4j
+        Args:
+            self
+            image_types: The type of images to insert
+
+        Returns:
+            None
+
+        """
         if self.batch is None:
             if image_types == 'cifar':
                 self.load_cifar()
@@ -169,6 +224,15 @@ class FeatureExtractor():
                 )
 
     def initCentroids(self, k=2) -> None:
+        """
+        Initializes the centroids for the k-means clustering algo
+        Args:
+            self
+            k: The number of centroids to initialize
+
+        Returns:
+
+        """
         query:str = f"""MATCH (n)
                        WITH n, rand() as r
                        ORDER BY r
@@ -180,6 +244,15 @@ class FeatureExtractor():
     
     @staticmethod
     def get_contour_features(img) -> list:
+        """
+        Extracts contour features from an image vector
+        Args:
+            img: The image vector to extract contour features from
+
+        Returns:
+            list: A list of contour features extracted from the image
+
+        """
         # Convert image to grayscale and apply binary threshold
         _, thresh = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
 
@@ -218,6 +291,15 @@ class FeatureExtractor():
     
     @staticmethod
     def detect_edges(image_array) -> np.array:
+        """
+        Detects edges in an image array using the Canny edge detection algorithm.
+        Args:
+            image_array: The image array to detect edges in
+
+        Returns:
+            np.array: The image array with edges detected
+
+        """
         # Convert numpy array to Pillow Image object
         image: Image = Image.fromarray(image_array)
 
@@ -232,6 +314,15 @@ class FeatureExtractor():
     
     # Extracts texture features from an image array using the Haralick texture descriptor.
     def extract_texture_features(image: np.ndarray) -> np.ndarray:
+        """
+        Extracts texture features from an image array using the Haralick texture descriptor.
+        Args:
+            image: The image array to extract texture features from
+
+        Returns:
+            np.ndarray: A 13-element feature vector representing the texture features of the image
+
+        """
 
         # Convert the image to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -246,7 +337,10 @@ class FeatureExtractor():
         return features
     
     
-    def heursitic(self) -> None:         
+    def heursitic(self) -> None:
+        """
+        Heuristic function to assign nodes to centroids
+        """
     # calculate and assign nodes
         query: str = """
                         MATCH (n:Image {centroid: false}), (c:Image {centroid: true})
@@ -260,6 +354,9 @@ class FeatureExtractor():
             session.run(query)
             
     def removeConnections(self) -> None:
+        """
+        Removes all connections between nodes in the graph database
+        """
         query: str = """
             MATCH ()-[r]-()
             DELETE r
@@ -268,6 +365,13 @@ class FeatureExtractor():
             session.run(query)
     
     def getAllNodes(self):
+        """
+        Gets all nodes in the database and returns them as a dictionary
+
+        Returns:
+            dict: A dictionary of all nodes in the database
+
+        """
         # return all centroids and images
         query_get_centroids: str = """
                         MATCH (c:Centroid)
@@ -292,7 +396,24 @@ class FeatureExtractor():
             return centroid_id_to_properties, image_id_to_properties
         
     def connectToCentroid(self, centroid_id_to_properties, image_id_to_properties):
+        """
+        Connects images to centroids based on strength of cosine similarity
+        Args:
+            centroid_id_to_properties (dict): a list of centroid ids and their properties (features)
+            image_id_to_properties:  a list of image ids and their properties (features)
+
+        """
         def cosine_similarity(x, y):
+            """
+            Calculates the cosine similarity between two vectors.
+            Args:
+                x: image features
+                y: centroid features
+
+            Returns:
+                float: The cosine similarity between the two vectors
+
+            """
             return np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
         
         # connect images to centroids based on cosine similarity
@@ -327,6 +448,9 @@ class FeatureExtractor():
                 session.run(query, image_id=image_id, centroid_id=closest_centroid_id, similarity=closest_centroid_similarity)
 
     def recalcCentroid(self) -> None:
+        """
+        Recalculates the centroid averages using feature of the images connected to it and updates the centroid properties
+        """
         with self.database.driver.session() as session:
             # get all the centroids
             query_get_centroids: str = """
@@ -382,6 +506,13 @@ class FeatureExtractor():
                 session.run(query_update_centroid, centroid_id=centroid_id, corrcoef=corrcoef, covariance=covariance, max=max, mean=mean, median=median, min=min, std=std)
                 
     def count_connections(self):
+        """
+        Counts the number of images connected to each centroid
+
+        Returns:
+            dict: a dictionary of centroid ids and the number of images connected to them
+
+        """
         query: str = """
                         MATCH (i:Image)-[r:CLOSEST_TO]->(c:Centroid)
                         RETURN c, count(r)
@@ -394,6 +525,13 @@ class FeatureExtractor():
             return id_to_count
         
     def scoreClusters(self):
+        """
+        Calculates the silhoutte score for each cluster
+
+        Returns:
+            dict: a dictionary of centroid ids and their silhoutte score
+
+        """
         # get list of names of all nodes connected to each centroid
         query: str = """
                         MATCH (i:Image)-[r:CLOSEST_TO]->(c:Centroid)
@@ -420,6 +558,9 @@ class FeatureExtractor():
             return id_to_score
     
     def train(self) -> None:
+        """
+        Driver method to train the k-means clustering algorithm model
+        """
         # remove all current connections
         self.removeConnections()
         centroid_id_to_properties, image_id_to_properties = self.getAllNodes()

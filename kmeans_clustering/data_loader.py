@@ -8,6 +8,16 @@ class CIFAR10Loader():
         self.data_dir = data_dir
 
     def _read_batch(self, file_path) -> tuple:
+        """
+        Helper method to read a batch of CIFAR-10 data from a file
+
+        Args: file_path (str): The path of the file to read.
+
+        Returns:
+            images (np.ndarray): The images in the batch.
+            labels (np.ndarray): The labels of the images in the batch.
+
+        """
         # helper method to read a batch of CIFAR-10 data from a file
         # takes the path of the file to read as input
         with open(file_path, 'rb') as f:
@@ -20,6 +30,10 @@ class CIFAR10Loader():
         return images, labels
 
     def load(self) -> None:
+
+        """
+        Method to load the CIFAR-10 data from the specified directory
+        """
         # method to load the CIFAR-10 data from the specified directory 
         # TODO: Need to figure out where to load imagebs into
         pass
