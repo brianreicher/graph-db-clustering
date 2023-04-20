@@ -107,10 +107,10 @@ class FeatureExtractor():
             None
 
         """
-       images_rdd = self.spark.sparkContext.parallelize(self.data)
+        images_rdd = self.spark.sparkContext.parallelize(self.data)
 
-       def load_image_np(batch) -> tuple:
-              """
+        def load_image_np(batch) -> tuple:              
+            """
               Loads an image from a batch and converts it to a numpy array
                 Args:
                     batch (list): The batch to load
@@ -118,21 +118,18 @@ class FeatureExtractor():
                     tuple: A tuple containing the image batch path and the numpy array representing the image
 
               """
-           # convert the image to a 32x32 numpy array and apply filtering
-           img: np.ndarray = cv2.resize(batch, (32, 32))
-           # img: np.ndarray = cv2.cvtColor(batch, cv2.COLOR_BGR2GRAY)
-           img = cv2.GaussianBlur(img, (5,5), 0)
-           img = cv2.medianBlur(img, 5)
+            img: np.ndarray = cv2.resize(batch, (32, 32))
+            # img: np.ndarray = cv2.cvtColor(batch, cv2.COLOR_BGR2GRAY)
+            img = cv2.GaussianBlur(img, (5,5), 0)
+            img = cv2.medianBlur(img, 5)
+            return (batch, img)
+
+        images_rdd = images_rdd.map(load_image_np).filter(lambda x: x[1] is not None)
 
 
-           return (batch, img)
-
-       images_rdd = images_rdd.map(load_image_np).filter(lambda x: x[1] is not None)
-
-
-       images = images_rdd.collect()
-       self.batch: dict = dict(zip(self.labels, images))
-       self.batch_index += len(images)
+        images = images_rdd.collect()
+        self.batch: dict = dict(zip(self.labels, images))
+        self.batch_index += len(images)
 
 
 
