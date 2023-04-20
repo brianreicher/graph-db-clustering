@@ -6,7 +6,7 @@ from PIL import Image, ImageFilter
 import mahotas
 from .database import *
 from collections import defaultdict
-
+import pickle
 
 class FeatureExtractor():
     def __init__(self, image_dir, batch_size=5, epochs=100) -> None:
@@ -25,15 +25,44 @@ class FeatureExtractor():
 
         self.image_dir:str = image_dir
         self.file_list:list = []
+        self.data: list = []
+        self.labels:list = []   
 
-        # Iterate over all files in the directory
-        for filename in os.listdir(image_dir):
+        if 'cifar' in image_dir:
+            batch_files:list = ['data_batch_1', 'data_batch_2', 'data_batch_3']
+            for batch_file in batch_files:
+                batch_file_path = os.path.join(image_dir, batch_file)
 
-            filepath: str = os.path.join(image_dir, filename)
-            # Check if the file is a regular file (i.e., not a directory)
-            if os.path.isfile(filepath):
-                # Add the file path to the list
-                self.file_list.append(filepath)
+
+                with open(batch_file_path, 'rb') as fo:
+                    # Load the batch data using pickle
+                    batch_data = pickle.load(fo, encoding='bytes')
+
+
+                    # Extract image data and labels from batch data
+                    self.data.extend(batch_data[b'data'])
+                    self.labels.extend(batch_data[b'labels'])
+            with open(f'{image_dir}/batches.meta', 'rb') as f:
+                meta = pickle.load(f, encoding='bytes')
+
+
+            class_labels = meta[b'label_names']
+            lbls: list = [label.decode('utf-8') for label in class_labels]
+
+
+            self.labels =  [lbls[i] for i in self.labels][:len(self.data)]
+
+        else:
+            # Iterate over all files in the directory
+            for filename in os.listdir(image_dir):
+
+                filepath: str = os.path.join(image_dir, filename)
+            
+                if os.path.isfile(filepath):
+                    # Add the file path to the list
+                    self.file_list.append(filepath)
+
+        
 
      # define a function to load images in batches and convert them to numpy arrays using spark 
     def load_images(self) -> None:
@@ -57,6 +86,27 @@ class FeatureExtractor():
         images = images_rdd.collectAsMap()
         self.batch: dict = images
         self.batch_index += len(images)
+
+    def load_cifar(self) -> None:
+       images_rdd = self.spark.sparkContext.parallelize(self.data)
+
+       def load_image_np(batch) -> tuple:
+           # convert the image to a 32x32 numpy array and apply filtering
+           img: np.ndarray = cv2.resize(batch, (32, 32))
+           # img: np.ndarray = cv2.cvtColor(batch, cv2.COLOR_BGR2GRAY)
+           img = cv2.GaussianBlur(img, (5,5), 0)
+           img = cv2.medianBlur(img, 5)
+
+
+           return (batch, img)
+
+       images_rdd = images_rdd.map(load_image_np).filter(lambda x: x[1] is not None)
+
+
+       images = images_rdd.collect()
+       self.batch: dict = dict(zip(self.labels, images))
+       self.batch_index += len(images)
+
 
 
     @staticmethod
@@ -92,14 +142,17 @@ class FeatureExtractor():
         # Extract statistical features: TODO: add more
         return [np.mean(img), np.std(img), np.median(img), np.min(img), np.max(img), np.corrcoef(img)[0][0], np.cov(img)[0][0]]
 
-    def insertImageGraph(self) -> None:
+    def insertImageGraph(self, image_types='local') -> None:
         if self.batch is None:
-            self.load_images()
+            if image_types == 'cifar':
+                self.load_cifar()
+            else:
+                self.load_images()
 
         for label, img in self.batch.items():
             if 'cat' in label.lower():
                 label:str = 'cat'
-            else:
+            if 'dog' in label.lower():
                 label:str = 'dog'
             print(label)
             feat_array: list = self.extract_features(img)
